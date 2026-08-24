@@ -1,62 +1,73 @@
+const params = new URLSearchParams(window.location.search);
+const eventId = params.get("event");
+
+const gallery = document.getElementById("gallery");
+const eventTitle = document.getElementById("eventTitle");
+
+if (!eventId) {
+    gallery.innerHTML = `
+    <div class="empty">
+      <h2>Event tidak ditemukan</h2>
+      <p>Gunakan QR Code atau link event.</p>
+    </div>
+  `;
+} else {
+    eventTitle.textContent = `Event: ${eventId}`;
+
+    loadPhotos();
+}
+
 async function loadPhotos() {
-    const loading = document.getElementById("loading");
-
-    const gallery = document.getElementById("gallery");
-
-    const empty = document.getElementById("empty");
-
     try {
-        const response = await fetch("/api/photos");
+        const response = await fetch(
+            `/api/photos?event=${encodeURIComponent(eventId)}`
+        );
 
         if (!response.ok) {
-            throw new Error("Gagal mengambil daftar foto");
+            throw new Error("Gagal mengambil foto");
         }
 
-        const photos = await response.json();
+        const data = await response.json();
 
-        loading.hidden = true;
-
-        if (photos.length === 0) {
-            empty.hidden = false;
+        if (!data.photos || data.photos.length === 0) {
+            gallery.innerHTML = `
+        <div class="empty">
+          <h2>Belum ada foto</h2>
+          <p>Foto akan muncul di sini setelah diupload.</p>
+        </div>
+      `;
 
             return;
         }
 
         gallery.innerHTML = "";
 
-        photos.forEach(photo => {
-            const item = document.createElement("div");
+        data.photos.forEach(photo => {
+            const card = document.createElement("div");
 
-            item.className = "photo";
+            card.className = "photo-card";
 
-            item.innerHTML = `
-                <img
-                    src="${photo.url}"
-                    alt="${escapeHtml(photo.name)}"
-                    loading="lazy"
-                >
+            card.innerHTML = `
+        <img
+          src="${photo.url}"
+          alt="${photo.name}"
+          loading="lazy"
+        >
+        <div class="photo-name">
+          ${photo.name}
+        </div>
+      `;
 
-                <div class="photo-name">
-                    ${escapeHtml(photo.name)}
-                </div>
-            `;
-
-            gallery.appendChild(item);
+            gallery.appendChild(card);
         });
     } catch (error) {
-        loading.textContent = "Gagal memuat foto.";
-
         console.error(error);
+
+        gallery.innerHTML = `
+      <div class="empty">
+        <h2>Gagal memuat foto</h2>
+        <p>Silakan coba lagi.</p>
+      </div>
+    `;
     }
 }
-
-function escapeHtml(value) {
-    return value
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-}
-
-loadPhotos();
